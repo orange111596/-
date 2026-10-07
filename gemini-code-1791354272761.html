@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>加法極速挑戰賽</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    input {
+      user-select: auto;
+      -webkit-user-select: auto;
+    }
+    .touch-btn {
+      touch-action: manipulation;
+      transition: all 0.08s ease;
+    }
+    .touch-btn:active {
+      transform: scale(0.94);
+      filter: brightness(0.9);
+    }
+    .shake {
+      animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+    }
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-2px, 0, 0); }
+      20%, 80% { transform: translate3d(4px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+      40%, 60% { transform: translate3d(6px, 0, 0); }
+    }
+    .pop {
+      animation: pop 0.25s ease-out;
+    }
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col items-center justify-between p-3 select-none">
+
+  <!-- 頂部資訊列 -->
+  <header class="w-full max-w-md flex justify-between items-center py-2 px-3 bg-white rounded-2xl shadow-sm border border-slate-200">
+    <div class="flex items-center gap-2">
+      <span class="text-2xl">⚡</span>
+      <h1 class="text-lg font-black tracking-wide bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">加法極速挑戰</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="switchView('leaderboard')" class="touch-btn text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm">
+        🏆 榮譽榜
+      </button>
+    </div>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main class="w-full max-w-md flex-1 flex flex-col justify-center my-3">
+    
+    <!-- 畫面 1: 設定與開始 -->
+    <section id="setupView" class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex flex-col gap-4">
+      <div>
+        <label class="block text-xs font-bold text-slate-500 mb-1.5">選手稱號 / 座號</label>
+        <div class="flex gap-2">
+          <input id="playerNameInput" type="text" maxlength="10" placeholder="請輸入姓名或座號" 
+            class="flex-1 bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-base font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+          <button onclick="randomizeName()" class="touch-btn bg-slate-100 border border-slate-200 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold">
+            🎲 稱號
+          </button>
+        </div>
+      </div>
+
+      <!-- 模式選擇 -->
+      <div>
+        <label class="block text-xs font-bold text-slate-500 mb-1.5">競賽模式</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="modeSprintBtn" onclick="setMode('sprint')" class="touch-btn py-2.5 rounded-xl border-2 text-xs font-black transition-all border-blue-600 bg-blue-50 text-blue-700">
+            🎯 題數衝刺賽 (20題)
+          </button>
+          <button id="modeTimedBtn" onclick="setMode('timed')" class="touch-btn py-2.5 rounded-xl border-2 text-xs font-black transition-all border-slate-200 bg-slate-50 text-slate-600">
+            ⏱️ 限時狂飆賽 (60秒)
+          </button>
+        </div>
+      </div>
+
+      <!-- 難度選擇 -->
+      <div>
+        <label class="block text-xs font-bold text-slate-500 mb-1.5">計算難度</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button id="diff1Btn" onclick="setDifficulty(1)" class="touch-btn py-2 rounded-xl border-2 text-xs font-black border-blue-600 bg-blue-50 text-blue-700">
+            基礎 (1-20)
+          </button>
+          <button id="diff2Btn" onclick="setDifficulty(2)" class="touch-btn py-2 rounded-xl border-2 text-xs font-black border-slate-200 bg-slate-50 text-slate-600">
+            進階 (二位數)
+          </button>
+          <button id="diff3Btn" onclick="setDifficulty(3)" class="touch-btn py-2 rounded-xl border-2 text-xs font-black border-slate-200 bg-slate-50 text-slate-600">
+            挑戰 (進位)
+          </button>
+        </div>
+      </div>
+
+      <button onclick="startGame()" class="touch-btn w-full mt-2 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-lg shadow-md shadow-blue-200 flex justify-center items-center gap-2">
+        🚀 開始挑戰
+      </button>
+    </section>
+
+    <!-- 畫面 2: 答題進行中 -->
+    <section id="gameView" class="hidden flex-col gap-3">
+      <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+        <div>
+          <span class="text-[11px] font-bold text-slate-400 block">時間</span>
+          <span id="gameTimer" class="text-2xl font-black font-mono text-slate-700">00.00</span>
+        </div>
+        <div class="text-center">
+          <span class="text-[11px] font-bold text-slate-400 block">連擊</span>
+          <span id="gameCombo" class="text-2xl font-black text-amber-500">0</span>
+        </div>
+        <div class="text-right">
+          <span class="text-[11px] font-bold text-slate-400 block">答對題數</span>
+          <span id="gameScore" class="text-2xl font-black font-mono text-emerald-600">0</span>
+        </div>
+      </div>
+
+      <!-- 算式卡片 -->
+      <div id="flashCard" class="bg-white py-6 px-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center relative min-h-[160px]">
+        <div class="text-4xl sm:text-5xl font-black font-mono tracking-tight text-slate-800 flex items-center gap-3">
+          <span id="num1">0</span>
+          <span class="text-blue-500">+</span>
+          <span id="num2">0</span>
+          <span class="text-slate-400">=</span>
+        </div>
+        <div class="mt-4 min-h-[48px] flex items-center">
+          <span id="answerDisplay" class="text-4xl font-black font-mono text-blue-600 bg-blue-50 px-6 py-1 rounded-2xl border-2 border-blue-200 min-w-[120px] text-center"></span>
+        </div>
+      </div>
+
+      <!-- 九宮格鍵盤 -->
+      <div class="grid grid-cols-3 gap-2 mt-1">
+        <button onclick="pressKey('1')" class="touch-btn py-3.5 sm:py-4 bg-white border border-slate-200 rounded-2xl text-2xl font-black text-slate-700 shadow-sm active:bg-slate-100">1</button>
+        <button onclick="pressKey('2')" class="touch-btn py-3.5 sm:py-4 bg-white border border-slate-200 rounded-2xl text-2xl font-black text-slate-700 shadow-sm active:bg-slate-100">2</button>
+        <button onclick="pressKey('3')" class="touch-btn py-3.5 sm:py-4 bg-white border border-slate-200 rounded-2xl text-2xl font-black text-slate-700 shadow-sm active:bg-slate-100">3</button>
+        <button onclick="pressKey('4')" class="touch-btn py-3.5 sm:py-4 bg-white border border-slate-200 rounded-2xl text-2xl font-black text-slate-700 shadow-sm active:bg-slate-100">4</button>
+        <button onclick="pressKey('5')" class="touch-btn py-3.5 sm:py-4 bg-white border border-slate-200 rounded-2xl text-2xl font-black text-slate-700 shadow-sm active:bg-slate-100">5</button>
+        <button onclick="pressKey('6')" class="touch-btn py-3.5 sm:py-4 bg-white border border-slate-200 rounded-2xl text-2xl font-black text-slate-700 shadow-sm active:bg-slate-100">6</button>
+        <button onclick="pressKey('7')" class="touch-btn py-3.5 sm:py-4 bg-white border border-slate-200 rounded-2xl text-2xl font-black text-slate-700 shadow-sm active:bg-slate-100">7</button>
+        <button onclick="pressKey('8')" class="touch-btn py-3.5 sm:py-4 bg-white border border-slate-200 rounded-2xl text-2xl font-black text-slate-700 shadow-sm active:bg-slate-100">8</button>
+        <button onclick="pressKey('9')" class="touch-btn py-3.5 sm:py-4 bg-white border border-slate-200 rounded-2xl text-2xl font-black text-slate-700 shadow-sm active:bg-slate-100">9</button>
+        <button onclick="pressClear()" class="touch-btn py-3.5 sm:py-4 bg-rose-50 border border-rose-200 rounded-2xl text-lg font-black text-rose-600 shadow-sm active:bg-rose-100">清除</button>
+        <button onclick="pressKey('0')" class="touch-btn py-3.5 sm:py-4 bg-white border border-slate-200 rounded-2xl text-2xl font-black text-slate-700 shadow-sm active:bg-slate-100">0</button>
+        <button onclick="submitAnswer()" class="touch-btn py-3.5 sm:py-4 bg-emerald-500 border border-emerald-600 rounded-2xl text-lg font-black text-white shadow-sm active:bg-emerald-600">送出</button>
+      </div>
+    </section>
+
+    <!-- 畫面 3: 結算卡片 -->
+    <section id="resultView" class="hidden bg-white p-6 rounded-3xl shadow-sm border border-slate-200 text-center flex-col gap-4">
+      <div class="text-5xl">🎉</div>
+      <h2 class="text-xl font-black text-slate-800">挑戰完成！</h2>
+      <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-around">
+        <div>
+          <span class="text-xs text-slate-400 font-bold block">答對題數</span>
+          <span id="finalScore" class="text-2xl font-black text-emerald-600">0</span>
+        </div>
+        <div>
+          <span class="text-xs text-slate-400 font-bold block">總耗時</span>
+          <span id="finalTime" class="text-2xl font-black font-mono text-slate-700">00.00</span>
+        </div>
+      </div>
+      <div id="cloudUploadNotice" class="text-xs font-bold text-blue-600 animate-pulse">
+        ☁️ 成績已同步至雲端試算表...
+      </div>
+      <div class="flex gap-2">
+        <button onclick="switchView('setup')" class="touch-btn flex-1 py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-black text-sm">
+          🔄 再玩一次
+        </button>
+        <button onclick="switchView('leaderboard')" class="touch-btn flex-1 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm shadow-md shadow-blue-200">
+          🏆 查看排名
+        </button>
+      </div>
+    </section>
+
+    <!-- 畫面 4: 榮譽榜 -->
+    <section id="leaderboardView" class="hidden bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex flex-col gap-3">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-base font-black text-slate-800">🏆 榮譽排行榜</h2>
+          <p id="rankSubtitle" class="text-[10px] text-slate-400">規則：答對題數多者優先，同分比耗時</p>
+        </div>
+        <button onclick="loadLeaderboard()" class="touch-btn text-xs bg-slate-100 border border-slate-200 text-slate-600 px-2.5 py-1.5 rounded-xl font-bold flex items-center gap-1">
+          🔄 重新整理
+        </button>
+      </div>
+
+      <div class="overflow-y-auto max-h-[300px] rounded-xl border border-slate-100 divide-y divide-slate-100" id="leaderboardList">
+        <div class="p-4 text-center text-xs text-slate-400">載入中...</div>
+      </div>
+
+      <button onclick="switchView('setup')" class="touch-btn w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-xs mt-1">
+        返回首頁
+      </button>
+    </section>
+
+  </main>
+
+  <footer class="w-full max-w-md text-center py-2 text-[10px] text-slate-400 font-bold">
+    加法極速挑戰 • 課堂載具即時同步系統
+  </footer>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyiCM6fg9xhfDnHFt4bZcUrk5AryTZV_JZcmnLuXw2Y64Do2cwPCMxy6303Q2lPJX8UCg/exec";
+
+    let mode = 'sprint';
+    let difficulty = 1;
+    let playerName = '';
+    let currentInput = '';
+    let currentAns = 0;
+    let score = 0;
+    let combo = 0;
+    let startTime = 0;
+    let timerInterval = null;
+    let remainingTime = 60;
+    let sprintTarget = 20;
+
+    const TITLES = ['閃電運算俠', '心算小精靈', '數學小博士', '速算大師', '數字探險家', '加法小火箭', '極速神童'];
+
+    function randomizeName() {
+      const random = TITLES[Math.floor(Math.random() * TITLES.length)] + (Math.floor(Math.random() * 90) + 10);
+      document.getElementById('playerNameInput').value = random;
+    }
+
+    function setMode(m) {
+      mode = m;
+      document.getElementById('modeSprintBtn').className = m === 'sprint' 
+        ? "touch-btn py-2.5 rounded-xl border-2 text-xs font-black border-blue-600 bg-blue-50 text-blue-700"
+        : "touch-btn py-2.5 rounded-xl border-2 text-xs font-black border-slate-200 bg-slate-50 text-slate-600";
+      document.getElementById('modeTimedBtn').className = m === 'timed'
+        ? "touch-btn py-2.5 rounded-xl border-2 text-xs font-black border-blue-600 bg-blue-50 text-blue-700"
+        : "touch-btn py-2.5 rounded-xl border-2 text-xs font-black border-slate-200 bg-slate-50 text-slate-600";
+    }
+
+    function setDifficulty(d) {
+      difficulty = d;
+      for (let i = 1; i <= 3; i++) {
+        const btn = document.getElementById(`diff${i}Btn`);
+        btn.className = (i === d)
+          ? "touch-btn py-2 rounded-xl border-2 text-xs font-black border-blue-600 bg-blue-50 text-blue-700"
+          : "touch-btn py-2 rounded-xl border-2 text-xs font-black border-slate-200 bg-slate-50 text-slate-600";
+      }
+    }
+
+    function switchView(viewName) {
+      document.getElementById('setupView').classList.add('hidden');
+      document.getElementById('gameView').classList.add('hidden');
+      document.getElementById('resultView').classList.add('hidden');
+      document.getElementById('leaderboardView').classList.add('hidden');
+
+      if (viewName === 'setup') document.getElementById('setupView').classList.remove('hidden');
+      if (viewName === 'game') document.getElementById('gameView').classList.remove('hidden');
+      if (viewName === 'result') document.getElementById('resultView').classList.remove('hidden');
+      if (viewName === 'leaderboard') {
+        document.getElementById('leaderboardView').classList.remove('hidden');
+        loadLeaderboard();
+      }
+    }
+
+    function startGame() {
+      const input = document.getElementById('playerNameInput').value.trim();
+      playerName = input || '無名英雄';
+      score = 0;
+      combo = 0;
+      currentInput = '';
+      updateInputDisplay();
+      document.getElementById('gameScore').innerText = '0';
+      document.getElementById('gameCombo').innerText = '0';
+
+      switchView('game');
+      generateQuestion();
+
+      startTime = Date.now();
+      clearInterval(timerInterval);
+
+      if (mode === 'timed') {
+        remainingTime = 60;
+        document.getElementById('gameTimer').innerText = "60.00";
+        timerInterval = setInterval(() => {
+          const elapsed = (Date.now() - startTime) / 1000;
+          const left = Math.max(0, 60 - elapsed);
+          document.getElementById('gameTimer').innerText = left.toFixed(2);
+          if (left <= 0) endGame();
+        }, 50);
+      } else {
+        document.getElementById('gameTimer').innerText = "00.00";
+        timerInterval = setInterval(() => {
+          const elapsed = (Date.now() - startTime) / 1000;
+          document.getElementById('gameTimer').innerText = elapsed.toFixed(2);
+        }, 50);
+      }
+    }
+
+    function generateQuestion() {
+      let n1, n2;
+      if (difficulty === 1) {
+        n1 = Math.floor(Math.random() * 10) + 1;
+        n2 = Math.floor(Math.random() * 10) + 1;
+      } else if (difficulty === 2) {
+        n1 = Math.floor(Math.random() * 40) + 10;
+        n2 = Math.floor(Math.random() * 9) + 1;
+      } else {
+        n1 = Math.floor(Math.random() * 45) + 15;
+        n2 = Math.floor(Math.random() * 45) + 15;
+      }
+      currentAns = n1 + n2;
+      document.getElementById('num1').innerText = n1;
+      document.getElementById('num2').innerText = n2;
+      currentInput = '';
+      updateInputDisplay();
+    }
+
+    function pressKey(key) {
+      if (currentInput.length < 4) {
+        currentInput += key;
+        updateInputDisplay();
+      }
+    }
+
+    function pressClear() {
+      currentInput = '';
+      updateInputDisplay();
+    }
+
+    function updateInputDisplay() {
+      document.getElementById('answerDisplay').innerText = currentInput;
+    }
+
+    function submitAnswer() {
+      if (!currentInput) return;
+      const ans = parseInt(currentInput, 10);
+      const card = document.getElementById('flashCard');
+
+      if (ans === currentAns) {
+        score++;
+        combo++;
+        card.classList.remove('pop');
+        void card.offsetWidth;
+        card.classList.add('pop');
+        document.getElementById('gameScore').innerText = score;
+        document.getElementById('gameCombo').innerText = combo;
+
+        if (mode === 'sprint' && score >= sprintTarget) {
+          endGame();
+          return;
+        }
+        generateQuestion();
+      } else {
+        combo = 0;
+        document.getElementById('gameCombo').innerText = combo;
+        card.classList.remove('shake');
+        void card.offsetWidth;
+        card.classList.add('shake');
+        currentInput = '';
+        updateInputDisplay();
+      }
+    }
+
+    function endGame() {
+      clearInterval(timerInterval);
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+
+      document.getElementById('finalScore').innerText = score;
+      document.getElementById('finalTime').innerText = totalTime + 's';
+      switchView('result');
+
+      // 同時保存本機並嘗試上傳雲端
+      saveLocalRecord(playerName, score, parseFloat(totalTime), mode, difficulty);
+      uploadScore(playerName, score, parseFloat(totalTime), mode, difficulty);
+    }
+
+    function saveLocalRecord(name, correct, time, modeVal, diffVal) {
+      const modeText = modeVal === 'sprint' ? '題數衝刺(20題)' : '限時狂飆(60秒)';
+      const diffText = diffVal === 1 ? '基礎' : diffVal === 2 ? '進階' : '挑戰';
+      const records = JSON.parse(localStorage.getItem('math_racing_local') || '[]');
+      records.push({
+        name,
+        correctCount: correct,
+        totalTime: time,
+        mode: modeText,
+        difficulty: diffText,
+        timestamp: new Date().toISOString()
+      });
+      records.sort((a, b) => b.correctCount !== a.correctCount ? b.correctCount - a.correctCount : a.totalTime - b.totalTime);
+      localStorage.setItem('math_racing_local', JSON.stringify(records));
+    }
+
+    async function uploadScore(name, correct, time, modeVal, diffVal) {
+      const modeText = modeVal === 'sprint' ? '題數衝刺(20題)' : '限時狂飆(60秒)';
+      const diffText = diffVal === 1 ? '基礎' : diffVal === 2 ? '進階' : '挑戰';
+      
+      const payload = {
+        name: name,
+        correctCount: correct,
+        totalTime: time,
+        mode: modeText,
+        difficulty: diffText
+      };
+
+      try {
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        document.getElementById('cloudUploadNotice').innerText = "✅ 成績已同步至雲端試算表！";
+      } catch (err) {
+        document.getElementById('cloudUploadNotice').innerText = "💾 已儲存至本機快取 (雲端離線中)";
+      }
+    }
+
+    async function loadLeaderboard() {
+      const container = document.getElementById('leaderboardList');
+      const subtitle = document.getElementById('rankSubtitle');
+      container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">正在抓取雲端排名資料...</div>`;
+
+      try {
+        const res = await fetch(SCRIPT_URL);
+        const data = await res.json();
+
+        subtitle.innerText = "☁️ 雲端即時連線中 (雙指標排序)";
+        renderList(data, container);
+      } catch (err) {
+        subtitle.innerText = "💾 目前使用本機排行 (雲端未開通或離線)";
+        const local = JSON.parse(localStorage.getItem('math_racing_local') || '[]');
+        renderList(local, container);
+      }
+    }
+
+    function renderList(list, container) {
+      if (!list || list.length === 0) {
+        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">目前尚無成績紀錄</div>`;
+        return;
+      }
+
+      let html = '';
+      list.forEach((r, idx) => {
+        const rank = idx + 1;
+        const badgeColor = rank === 1 ? 'bg-amber-400 text-white' : rank === 2 ? 'bg-slate-300 text-slate-700' : rank === 3 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-500';
+        html += `
+          <div class="p-3 flex items-center justify-between text-xs hover:bg-slate-50">
+            <div class="flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center font-black ${badgeColor}">${rank}</span>
+              <div>
+                <span class="font-black text-slate-800 block">${escapeHtml(r.name)}</span>
+                <span class="text-[10px] text-slate-400 font-bold">${escapeHtml(r.mode || '')} • ${escapeHtml(r.difficulty || '')}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="font-black text-emerald-600 block">${r.correctCount} 題</span>
+              <span class="text-[10px] text-slate-400 font-mono font-bold">${r.totalTime} 秒</span>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (document.getElementById('gameView').classList.contains('hidden')) return;
+      if (e.key >= '0' && e.key <= '9') pressKey(e.key);
+      if (e.key === 'Backspace') pressClear();
+      if (e.key === 'Enter') submitAnswer();
+    });
+  </script>
+</body>
+</html>
