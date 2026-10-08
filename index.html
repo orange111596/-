@@ -265,9 +265,22 @@
       }
     }
 
-    function startGame() {
-      const input = document.getElementById('playerNameInput').value.trim();
-      playerName = input || '無名英雄';
+function startGame() {
+      const nameInput = document.getElementById('playerNameInput');
+      const input = nameInput.value.trim();
+
+      // 檢查姓名是否必填
+      if (!input) {
+        alert('請先輸入選手姓名或座號！');
+        nameInput.focus();
+        nameInput.classList.add('border-rose-500', 'animate-pulse');
+        setTimeout(() => {
+          nameInput.classList.remove('border-rose-500', 'animate-pulse');
+        }, 1500);
+        return;
+      }
+
+      playerName = input;
       score = 0;
       combo = 0;
       currentInput = '';
