@@ -193,6 +193,20 @@
         </button>
       </div>
 
+      <!-- 難度分類切換標籤 -->
+      <div class="grid grid-cols-3 gap-2 p-1 bg-slate-100 rounded-2xl">
+        <button id="tabDiff1" onclick="switchLeaderboardTab('基礎')" class="touch-btn py-1.5 rounded-xl text-xs font-black bg-white text-blue-600 shadow-sm">
+          基礎
+        </button>
+        <button id="tabDiff2" onclick="switchLeaderboardTab('進階')" class="touch-btn py-1.5 rounded-xl text-xs font-black text-slate-500">
+          進階
+        </button>
+        <button id="tabDiff3" onclick="switchLeaderboardTab('挑戰')" class="touch-btn py-1.5 rounded-xl text-xs font-black text-slate-500">
+          挑戰
+        </button>
+      </div>
+
+      <!-- 排行榜清單 -->
       <div class="overflow-y-auto max-h-[300px] rounded-xl border border-slate-100 divide-y divide-slate-100" id="leaderboardList">
         <div class="p-4 text-center text-xs text-slate-400">載入中...</div>
       </div>
@@ -222,6 +236,10 @@
     let timerInterval = null;
     let remainingTime = 60;
     let sprintTarget = 20;
+
+    // 排行榜暫存資料與當前難度分頁
+    let allLeaderboardData = [];
+    let currentLeaderboardTab = '基礎';
 
     const TITLES = ['閃電運算俠', '心算小精靈', '數學小博士', '速算大師', '數字探險家', '加法小火箭', '極速神童'];
 
@@ -265,7 +283,7 @@
       }
     }
 
-function startGame() {
+    function startGame() {
       const nameInput = document.getElementById('playerNameInput');
       const input = nameInput.value.trim();
 
@@ -385,7 +403,6 @@ function startGame() {
       document.getElementById('finalTime').innerText = totalTime + 's';
       switchView('result');
 
-      // 同時保存本機並嘗試上傳雲端
       saveLocalRecord(playerName, score, parseFloat(totalTime), mode, difficulty);
       uploadScore(playerName, score, parseFloat(totalTime), mode, difficulty);
     }
@@ -431,6 +448,29 @@ function startGame() {
       }
     }
 
+    // 切換難度分頁
+    function switchLeaderboardTab(diffName) {
+      currentLeaderboardTab = diffName;
+
+      const tabs = [
+        { name: '基礎', id: 'tabDiff1' },
+        { name: '進階', id: 'tabDiff2' },
+        { name: '挑戰', id: 'tabDiff3' }
+      ];
+
+      tabs.forEach(t => {
+        const btn = document.getElementById(t.id);
+        if (t.name === diffName) {
+          btn.className = "touch-btn py-1.5 rounded-xl text-xs font-black bg-white text-blue-600 shadow-sm";
+        } else {
+          btn.className = "touch-btn py-1.5 rounded-xl text-xs font-black text-slate-500";
+        }
+      });
+
+      renderCurrentTabList();
+    }
+
+    // 載入排行資料（先拉取全部資料存於記憶體，再根據分頁顯示）
     async function loadLeaderboard() {
       const container = document.getElementById('leaderboardList');
       const subtitle = document.getElementById('rankSubtitle');
@@ -439,24 +479,28 @@ function startGame() {
       try {
         const res = await fetch(SCRIPT_URL);
         const data = await res.json();
-
         subtitle.innerText = "☁️ 雲端即時連線中 (雙指標排序)";
-        renderList(data, container);
+        allLeaderboardData = data || [];
       } catch (err) {
         subtitle.innerText = "💾 目前使用本機排行 (雲端未開通或離線)";
-        const local = JSON.parse(localStorage.getItem('math_racing_local') || '[]');
-        renderList(local, container);
+        allLeaderboardData = JSON.parse(localStorage.getItem('math_racing_local') || '[]');
       }
+
+      renderCurrentTabList();
     }
 
-    function renderList(list, container) {
-      if (!list || list.length === 0) {
-        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">目前尚無成績紀錄</div>`;
+    // 依當前選取的分頁渲染榜單
+    function renderCurrentTabList() {
+      const container = document.getElementById('leaderboardList');
+      const filteredList = allLeaderboardData.filter(r => (r.difficulty || '').includes(currentLeaderboardTab));
+
+      if (filteredList.length === 0) {
+        container.innerHTML = `<div class="p-6 text-center text-xs text-slate-400">目前尚無「${currentLeaderboardTab}」難度的成績紀錄</div>`;
         return;
       }
 
       let html = '';
-      list.forEach((r, idx) => {
+      filteredList.forEach((r, idx) => {
         const rank = idx + 1;
         const badgeColor = rank === 1 ? 'bg-amber-400 text-white' : rank === 2 ? 'bg-slate-300 text-slate-700' : rank === 3 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-500';
         html += `
@@ -465,7 +509,7 @@ function startGame() {
               <span class="w-6 h-6 rounded-full flex items-center justify-center font-black ${badgeColor}">${rank}</span>
               <div>
                 <span class="font-black text-slate-800 block">${escapeHtml(r.name)}</span>
-                <span class="text-[10px] text-slate-400 font-bold">${escapeHtml(r.mode || '')} • ${escapeHtml(r.difficulty || '')}</span>
+                <span class="text-[10px] text-slate-400 font-bold">${escapeHtml(r.mode || '')}</span>
               </div>
             </div>
             <div class="text-right">
